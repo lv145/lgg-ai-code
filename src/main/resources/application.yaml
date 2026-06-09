@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: lgg-aicode
+  profiles:
+    active: local
+
+  # mysql
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.159.110:3306/lgg_ai_code
+    username: root
+    password: 123
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+
+
+# 配置Knife4j
+knife4j:
+  enabled: true
+  setting:
+    language: zh_cn
+# 配置SpringDoc
+springdoc:
+  group-configs:
+    - group: "default"
+      packages-to-scan: com.lgg.lggaicode.controller
