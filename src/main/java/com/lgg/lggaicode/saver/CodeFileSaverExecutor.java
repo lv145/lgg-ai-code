@@ -13,10 +13,10 @@ public class CodeFileSaverExecutor {
     private static final HtmlCodeFileSaverTemplate htmlCodeFileSaverTemplate = new HtmlCodeFileSaverTemplate();
     private static final MultiFileSaverTemplate multiFileSaverTemplate = new MultiFileSaverTemplate();
 
-    public static File executeSaver(CodeGenTypeEnum codeType, Object codeResult){
+    public static File executeSaver(CodeGenTypeEnum codeType, Object codeResult, Long appId){
         return switch (codeType) {
-            case HTML -> htmlCodeFileSaverTemplate.saveCode((HtmlCodeResult) codeResult);
-            case MULTI_FILE -> multiFileSaverTemplate.saveCode((MultiFileCodeResult) codeResult);
+            case HTML -> htmlCodeFileSaverTemplate.saveCode((HtmlCodeResult) codeResult, appId);
+            case MULTI_FILE -> multiFileSaverTemplate.saveCode((MultiFileCodeResult) codeResult,appId);
             default -> throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的代码类型");
         };
     }
