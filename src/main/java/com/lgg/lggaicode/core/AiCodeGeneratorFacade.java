@@ -2,6 +2,7 @@ package com.lgg.lggaicode.core;
 
 import com.lgg.lggaicode.ai.model.HtmlCodeResult;
 import com.lgg.lggaicode.ai.model.MultiFileCodeResult;
+import com.lgg.lggaicode.config.AiCodeGeneratorServiceFactory;
 import com.lgg.lggaicode.exception.BusinessException;
 import com.lgg.lggaicode.exception.ErrorCode;
 import com.lgg.lggaicode.model.enums.CodeGenTypeEnum;
@@ -22,10 +23,15 @@ import java.io.File;
 @Slf4j
 public class AiCodeGeneratorFacade {
 
+
     @Resource
-    private AiCodeGeneratorService aiCodeGeneratorService;
+    private AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
 
 
+    // 抽私有统一获取方法
+    private AiCodeGeneratorService getAiService(Long appId) {
+        return aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId);
+    }
 
 
     /**
@@ -68,6 +74,8 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        // 根据 appId 获取对应的 AI 服务实例
+        AiCodeGeneratorService aiCodeGeneratorService = this.getAiService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 Flux<String> result = aiCodeGeneratorService.generateHtmlCodeStream(userMessage);
@@ -94,6 +102,8 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        // 根据 appId 获取对应的 AI 服务实例
+        AiCodeGeneratorService aiCodeGeneratorService = this.getAiService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 HtmlCodeResult htmlCodeResult = aiCodeGeneratorService.generateHtmlCode(userMessage);
@@ -116,6 +126,8 @@ public class AiCodeGeneratorFacade {
      * @return 保存的目录
      */
     public Flux<String> generateAndSaveMultiFileCodeStream(String userMessage, Long appId) {
+        // 根据 appId 获取对应的 AI 服务实例
+        AiCodeGeneratorService aiCodeGeneratorService = this.getAiService(appId);
         Flux<String> result = aiCodeGeneratorService.generateMultiFileCodeStream(userMessage);
         // 当流式返回生成代码完成后，再保存代码
         StringBuilder codeBuilder = new StringBuilder();
@@ -140,54 +152,54 @@ public class AiCodeGeneratorFacade {
 
 
 
-    /**
-     * 生成 HTML 模式的代码并保存
-     *
-     * @param userMessage 用户提示词
-     * @return 保存的目录
-     */
-    private File generateAndSaveHtmlCode(String userMessage) {
-        HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
-        return CodeFileSaver.saveHtmlCodeResult(result);
-    }
-
-    /**
-     * 生成多文件模式的代码并保存
-     *
-     * @param userMessage 用户提示词
-     * @return 保存的目录
-     */
-    private File generateAndSaveMultiFileCode(String userMessage) {
-        MultiFileCodeResult result = aiCodeGeneratorService.generateMultiFileCode(userMessage);
-        return CodeFileSaver.saveMultiFileCodeResult(result);
-    }
-    /**
-     * 生成 HTML 模式的代码并保存（流式）
-     *
-     * @param userMessage 用户提示词
-     * @param multiFile
-     * @return 保存的目录
-     */
-    public Flux<String> generateAndSaveHtmlCodeStream(String userMessage, CodeGenTypeEnum multiFile) {
-        Flux<String> result = aiCodeGeneratorService.generateHtmlCodeStream(userMessage);
-        // 当流式返回生成代码完成后，再保存代码
-        StringBuilder codeBuilder = new StringBuilder();
-        return result
-                .doOnNext(chunk -> {
-                    // 实时收集代码片段
-                    codeBuilder.append(chunk);
-                })
-                .doOnComplete(() -> {
-                    // 流式返回完成后保存代码
-                    try {
-                        String completeHtmlCode = codeBuilder.toString();
-                        HtmlCodeResult htmlCodeResult = CodeParser.parseHtmlCode(completeHtmlCode);
-                        // 保存代码到文件
-                        File savedDir = CodeFileSaver.saveHtmlCodeResult(htmlCodeResult);
-                        log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
-                    } catch (Exception e) {
-                        log.error("保存失败: {}", e.getMessage());
-                    }
-                });
-    }
+//    /**
+//     * 生成 HTML 模式的代码并保存
+//     *
+//     * @param userMessage 用户提示词
+//     * @return 保存的目录
+//     */
+//    private File generateAndSaveHtmlCode(String userMessage) {
+//        HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
+//        return CodeFileSaver.saveHtmlCodeResult(result);
+//    }
+//
+//    /**
+//     * 生成多文件模式的代码并保存
+//     *
+//     * @param userMessage 用户提示词
+//     * @return 保存的目录
+//     */
+//    private File generateAndSaveMultiFileCode(String userMessage) {
+//        MultiFileCodeResult result = aiCodeGeneratorService.generateMultiFileCode(userMessage);
+//        return CodeFileSaver.saveMultiFileCodeResult(result);
+//    }
+//    /**
+//     * 生成 HTML 模式的代码并保存（流式）
+//     *
+//     * @param userMessage 用户提示词
+//     * @param multiFile
+//     * @return 保存的目录
+//     */
+//    public Flux<String> generateAndSaveHtmlCodeStream(String userMessage, CodeGenTypeEnum multiFile) {
+//        Flux<String> result = aiCodeGeneratorService.generateHtmlCodeStream(userMessage);
+//        // 当流式返回生成代码完成后，再保存代码
+//        StringBuilder codeBuilder = new StringBuilder();
+//        return result
+//                .doOnNext(chunk -> {
+//                    // 实时收集代码片段
+//                    codeBuilder.append(chunk);
+//                })
+//                .doOnComplete(() -> {
+//                    // 流式返回完成后保存代码
+//                    try {
+//                        String completeHtmlCode = codeBuilder.toString();
+//                        HtmlCodeResult htmlCodeResult = CodeParser.parseHtmlCode(completeHtmlCode);
+//                        // 保存代码到文件
+//                        File savedDir = CodeFileSaver.saveHtmlCodeResult(htmlCodeResult);
+//                        log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
+//                    } catch (Exception e) {
+//                        log.error("保存失败: {}", e.getMessage());
+//                    }
+//                });
+//    }
 }

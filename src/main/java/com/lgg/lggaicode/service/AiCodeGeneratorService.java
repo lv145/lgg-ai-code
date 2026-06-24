@@ -2,10 +2,13 @@ package com.lgg.lggaicode.service;
 
 import com.lgg.lggaicode.ai.model.HtmlCodeResult;
 import com.lgg.lggaicode.ai.model.MultiFileCodeResult;
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import reactor.core.publisher.Flux;
 
 public interface AiCodeGeneratorService {
+
     /**
      * 生成 HTML 代码（流式）
      *

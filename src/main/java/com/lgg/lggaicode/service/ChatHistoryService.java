@@ -5,8 +5,8 @@ import com.lgg.lggaicode.model.dto.ChatHistoryQueryRequest;
 import com.mybatisflex.core.service.IService;
 import com.lgg.lggaicode.model.entity.ChatHistory;
 import com.lgg.lggaicode.model.enums.ChatHistoryMessageTypeEnum;
-import com.lgg.lggaicode.model.vo.ChatHistoryVO;
 import com.mybatisflex.core.query.QueryWrapper;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
 import java.util.List;
 
@@ -32,19 +32,5 @@ public interface ChatHistoryService extends IService<ChatHistory> {
      */
     QueryWrapper getQueryWrapper(ChatHistoryQueryRequest chatHistoryQueryRequest);
 
-    /**
-     * 获取对话历史视图对象
-     */
-    ChatHistoryVO getChatHistoryVO(ChatHistory chatHistory);
-
-    /**
-     * 获取对话历史视图对象列表
-     */
-    List<ChatHistoryVO> getChatHistoryVOList(List<ChatHistory> chatHistoryList);
-
-    /**
-     * 校验应用历史查询分页参数
-     */
-    void validAppPageParams(ChatHistoryAppQueryRequest chatHistoryAppQueryRequest);
-
+     int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory messageWindowChatMemory,int maxCount);
 }
