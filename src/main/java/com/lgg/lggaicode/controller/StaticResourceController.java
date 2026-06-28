@@ -47,7 +47,7 @@ public class StaticResourceController {
                 resourcePath = "index.html";
             }
             //构建文件路径
-            String filePath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/" + deployKey + "/" + resourcePath;
+            String filePath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + deployKey + File.separator + resourcePath;
             log.info("filePath: {}", filePath);
             File file = new File(filePath);
             if (!file.exists()) {

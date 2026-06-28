@@ -5,8 +5,10 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.lgg.lggaicode.ai.streamhandler.StreamHandlerExecutor;
 import com.lgg.lggaicode.constant.AppConstant;
 import com.lgg.lggaicode.core.AiCodeGeneratorFacade;
+import com.lgg.lggaicode.core.builder.VueProjectBuilder;
 import com.lgg.lggaicode.exception.BusinessException;
 import com.lgg.lggaicode.exception.ErrorCode;
 import com.lgg.lggaicode.exception.ThrowUtils;
@@ -23,6 +25,7 @@ import com.lgg.lggaicode.service.ChatHistoryService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -37,9 +40,14 @@ import java.util.stream.Collectors;
  * 应用 服务层实现。
  */
 @Service
+@Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService, AppConstant {
     @Resource
     AiCodeGeneratorFacade aiCodeGeneratorFacade;
+    @Resource
+    StreamHandlerExecutor streamHandlerExecutor;
+    @Resource
+    VueProjectBuilder vueProjectBuilder;
 
     @Resource
     ChatHistoryService chatHistoryService;
@@ -60,13 +68,24 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (StrUtil.isBlank(deployKey)) {
             deployKey= RandomUtil.randomString(6);
         }
-        //5.获取代码生成类型,构建源目录路径
-        String codeGenType = app.getCodeGenType();
-        String sourceDirName=codeGenType+"_"+appId;
+        String sourceDirName=app.getCodeGenType()+"_"+appId;
         String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR+java.io.File.separator + sourceDirName;
         //6.检查源目录是否存在
         File sourceDir = new File(sourceDirPath);
         ThrowUtils.throwIf(!sourceDir.exists()||!sourceDir.isDirectory(), ErrorCode.SYSTEM_ERROR, "应用代码目录不存在,请先生成应用代码");
+        //5.获取代码生成类型,构建源目录路径
+        CodeGenTypeEnum codeGenType = CodeGenTypeEnum.getEnumByValue(app.getCodeGenType());
+        if (codeGenType == CodeGenTypeEnum.VUE_PROJECT) {
+            boolean builderResult = vueProjectBuilder.buildProject(sourceDirPath);
+            ThrowUtils.throwIf(!builderResult, ErrorCode.SYSTEM_ERROR, "构建项目失败");
+            //检查dist目录是否存在
+            File distDir = new File(sourceDirPath,"dist");
+            ThrowUtils.throwIf(!distDir.exists()||!distDir.isDirectory(), ErrorCode.SYSTEM_ERROR, "dist目录不存在,请先构建项目");
+            sourceDir=distDir;
+            log.info("vue项目构建成功,部署目录:{}",sourceDir.getAbsolutePath());
+        }
+
+
         //7.复制文件到部署目录
         String deployDirPath = AppConstant.CODE_DEPLOY_ROOT_DIR+java.io.File.separator + deployKey;
         File deployDir = new File(deployDirPath);
@@ -103,25 +122,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(codeGenTypeEnum == null, ErrorCode.PARAMS_ERROR, "不支持的代码生成类型");
         Long userMessageId = chatHistoryService.addChatMessage(appId, loginUser.getId(), userMessage,
                 ChatHistoryMessageTypeEnum.USER, null);
-        StringBuilder aiResponseBuilder = new StringBuilder();
-        try {
-            return aiCodeGeneratorFacade.generateAndSaveCodeStream(userMessage, codeGenTypeEnum, appId)
-                    .doOnNext(aiResponseBuilder::append)
-                    .doOnComplete(() -> {
-                        String aiResponse = aiResponseBuilder.toString();
-                        if (StrUtil.isBlank(aiResponse)) {
-                            aiResponse = "AI 回复为空";
-                        }
-                        chatHistoryService.addChatMessage(appId, loginUser.getId(), aiResponse,
-                                ChatHistoryMessageTypeEnum.AI, userMessageId);
-                    })
-                    .doOnError(e -> chatHistoryService.addChatMessage(appId, loginUser.getId(),
-                            "AI 回复失败：" + e.getMessage(), ChatHistoryMessageTypeEnum.AI, userMessageId));
-        } catch (Exception e) {
-            chatHistoryService.addChatMessage(appId, loginUser.getId(),
-                    "AI 回复失败：" + e.getMessage(), ChatHistoryMessageTypeEnum.AI, userMessageId);
-            throw e;
-        }
+        //5.调用代码生成接口
+        Flux<String> stringFlux = aiCodeGeneratorFacade.generateAndSaveCodeStream(userMessage, codeGenTypeEnum, appId);
+        return streamHandlerExecutor.doExecute(stringFlux,chatHistoryService,appId,loginUser,codeGenTypeEnum,userMessageId);
+
     }
 
     @Override

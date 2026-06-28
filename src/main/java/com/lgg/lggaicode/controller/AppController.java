@@ -93,7 +93,7 @@ public class AppController implements AppConstant {
         app.setAppName(initPrompt.substring(0,Math.min(initPrompt.length(), 12)));
         app.setInitPrompt(initPrompt);
         app.setUserId(loginUser.getId());
-        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
         app.setPriority(0); ///
         boolean result = appService.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
