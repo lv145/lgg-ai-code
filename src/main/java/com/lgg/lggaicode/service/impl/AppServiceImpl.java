@@ -13,6 +13,7 @@ import com.lgg.lggaicode.exception.BusinessException;
 import com.lgg.lggaicode.exception.ErrorCode;
 import com.lgg.lggaicode.exception.ThrowUtils;
 import com.lgg.lggaicode.mapper.AppMapper;
+import com.lgg.lggaicode.model.dto.AppAddRequest;
 import com.lgg.lggaicode.model.dto.AppQueryRequest;
 import com.lgg.lggaicode.model.dto.AppUserQueryRequest;
 import com.lgg.lggaicode.model.entity.App;
@@ -20,14 +21,17 @@ import com.lgg.lggaicode.model.entity.User;
 import com.lgg.lggaicode.model.enums.ChatHistoryMessageTypeEnum;
 import com.lgg.lggaicode.model.enums.CodeGenTypeEnum;
 import com.lgg.lggaicode.model.vo.AppVO;
-import com.lgg.lggaicode.service.AppService;
-import com.lgg.lggaicode.service.ChatHistoryService;
+import com.lgg.lggaicode.service.*;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
@@ -51,6 +55,42 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     ChatHistoryService chatHistoryService;
+    @Resource
+    AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
+    @Resource
+    ScreenshotService screenshotService;
+
+    public void  generateAppScreenshotAsync(Long appId,String appUrl) {
+        Thread.startVirtualThread(() -> {
+            //调用截图服务生成截图并上传
+            String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+            //更新应用封面字段
+            App app=new App();
+            app.setId(appId);
+            app.setCover(screenshotUrl);
+            boolean updateResult = this.updateById(app);
+            ThrowUtils.throwIf(!updateResult, ErrorCode.OPERATION_ERROR, "更新应用封面失败");
+        });
+    }
+
+    @Override
+    public Long createApp(AppAddRequest appAddRequest, User loginUser) {
+        String initPrompt = appAddRequest.getInitPrompt();
+        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "initPrompt 不能为空");
+        App app = new App();
+        //截取initPrompt前12个字符作为应用名称
+        app.setAppName(initPrompt.substring(0,Math.min(initPrompt.length(), 12)));
+        app.setInitPrompt(initPrompt);
+        app.setUserId(loginUser.getId());
+        //通过路由生成类型
+        CodeGenTypeEnum codeGenTypeEnum = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
+        app.setCodeGenType(codeGenTypeEnum.getValue());
+        app.setPriority(0); ///默认优先级为0
+        //保存应用
+        boolean result = this.save(app);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
+        return app.getId();
+    }
 
     @Override
     public String deployApp(Long appId, User loginUser) {
@@ -73,7 +113,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         //6.检查源目录是否存在
         File sourceDir = new File(sourceDirPath);
         ThrowUtils.throwIf(!sourceDir.exists()||!sourceDir.isDirectory(), ErrorCode.SYSTEM_ERROR, "应用代码目录不存在,请先生成应用代码");
-        //5.获取代码生成类型,构建源目录路径
+        //7.获取代码生成类型,构建源目录路径
         CodeGenTypeEnum codeGenType = CodeGenTypeEnum.getEnumByValue(app.getCodeGenType());
         if (codeGenType == CodeGenTypeEnum.VUE_PROJECT) {
             boolean builderResult = vueProjectBuilder.buildProject(sourceDirPath);
@@ -103,7 +143,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         boolean updateResult = this.updateById(updateApp);
         ThrowUtils.throwIf(!updateResult, ErrorCode.SYSTEM_ERROR, "更新应用部署信息失败");
         //返回可访问的URL
-        return String.format("%s/%s",AppConstant.CODE_DEPLOY_HOST,deployKey);
+        String appUrl = String.format("%s/%s", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        generateAppScreenshotAsync(appId,appUrl);
+        return appUrl;
     }
 
     @Override

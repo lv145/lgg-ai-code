@@ -72,8 +72,8 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
                 .eq("appId", appId)
                 .eq("userId", userId)
                 .lt("createTime", lastCreateTime)
-                .orderBy("createTime desc")
-                .limit(pageSize);
+                .orderBy("createTime", false)
+                .limit(0, pageSize);
     }
 
     @Override

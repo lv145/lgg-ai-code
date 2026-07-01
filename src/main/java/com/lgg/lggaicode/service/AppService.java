@@ -1,5 +1,6 @@
 package com.lgg.lggaicode.service;
 
+import com.lgg.lggaicode.model.dto.AppAddRequest;
 import com.lgg.lggaicode.model.dto.AppQueryRequest;
 import com.lgg.lggaicode.model.dto.AppUserQueryRequest;
 import com.lgg.lggaicode.model.entity.App;
@@ -84,4 +85,13 @@ public interface AppService extends IService<App> {
      * 校验用户分页参数
      */
     void validUserPageParams(AppUserQueryRequest appUserQueryRequest);
+
+    /**
+     * 创建应用
+     * @param appAddRequest
+     * @param loginUser
+     * @return 应用id
+     */
+
+    Long createApp(AppAddRequest appAddRequest, User loginUser);
 }

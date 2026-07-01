@@ -16,10 +16,14 @@ import com.lgg.lggaicode.model.entity.App;
 import com.lgg.lggaicode.model.entity.User;
 import com.lgg.lggaicode.model.enums.CodeGenTypeEnum;
 import com.lgg.lggaicode.model.vo.AppVO;
+import com.lgg.lggaicode.service.AiCodeGenTypeRoutingService;
 import com.lgg.lggaicode.service.AppService;
+import com.lgg.lggaicode.service.ProjectDownloadService;
 import com.lgg.lggaicode.service.UserService;
 import com.mybatisflex.core.paginate.Page;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.nio.charset.MalformedInputException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,6 +51,39 @@ public class AppController implements AppConstant {
     @Autowired
     private UserService userService;
 
+    @Resource
+    private ProjectDownloadService projectDownloadService;
+    /**
+     * 下载应用代码
+     * @param appId
+     * @param response
+     * @param request
+     */
+    @GetMapping("/download/{appId}")
+    public void download(@PathVariable Long appId, HttpServletResponse response, HttpServletRequest request) {
+        //参数校验
+        ThrowUtils.throwIf(appId == null||appId<=0, ErrorCode.PARAMS_ERROR, "应用id不能为空");
+        //查询应用信息
+        App app = appService.getById(appId);
+        ThrowUtils.throwIf(app==null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        //验效用户是否有权限
+        User loginUser = userService.getLoginUser(request);
+        ThrowUtils.throwIf(!app.getUserId().equals(loginUser.getId())||!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE), ErrorCode.NO_AUTH_ERROR, "您没有权限操作该应用");
+        //构建项目目录路径
+        String appDirName=app.getCodeGenType()+"_"+appId;
+        String appDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR+ File.separator+appDirName;
+        File appDir = new File(appDirPath);
+        ThrowUtils.throwIf(!appDir.exists()&&!appDir.isDirectory(), ErrorCode.NOT_FOUND_ERROR, "应用目录不存在");
+        //调用项目下载服务下载项目
+        String fileName =String.valueOf(appId);
+        projectDownloadService.downloadProjectAsZip(appDirPath, fileName,  response);
+    }
+    /**
+     * 部署应用
+     * @param appDeployRequest
+     * @param request
+     * @return
+     */
     @PostMapping("/deploy")
     public BaseResponse<String> deployApp(@RequestBody AppDeployRequest appDeployRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appDeployRequest == null, ErrorCode.PARAMS_ERROR);
@@ -58,6 +96,13 @@ public class AppController implements AppConstant {
         return ResultUtils.success(deployUrl);
     }
 
+    /**
+     * 生成代码
+     * @param appId
+     * @param message
+     * @param request
+     * @return
+     */
     @GetMapping(value = "/chat/gen/code",produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message, HttpServletRequest request) {
@@ -86,18 +131,9 @@ public class AppController implements AppConstant {
     @PostMapping("/add")
     public BaseResponse<Long> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
-        String initPrompt = appAddRequest.getInitPrompt();
-        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "initPrompt 不能为空");
         User loginUser = userService.getLoginUser(request);
-        App app = new App();
-        app.setAppName(initPrompt.substring(0,Math.min(initPrompt.length(), 12)));
-        app.setInitPrompt(initPrompt);
-        app.setUserId(loginUser.getId());
-        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
-        app.setPriority(0); ///
-        boolean result = appService.save(app);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        return ResultUtils.success(app.getId());
+        Long appId = appService.createApp(appAddRequest, loginUser);
+        return ResultUtils.success(appId);
     }
 
     /**
