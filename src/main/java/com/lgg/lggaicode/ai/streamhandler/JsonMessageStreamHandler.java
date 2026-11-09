@@ -10,8 +10,6 @@ import com.lgg.lggaicode.ai.message.ToolExecutedMessage;
 import com.lgg.lggaicode.ai.message.ToolRequestMessage;
 import com.lgg.lggaicode.ai.tools.BaseTool;
 import com.lgg.lggaicode.ai.tools.ToolManager;
-import com.lgg.lggaicode.constant.AppConstant;
-import com.lgg.lggaicode.core.builder.VueProjectBuilder;
 import com.lgg.lggaicode.model.entity.ChatHistoryOriginal;
 import com.lgg.lggaicode.model.entity.User;
 import com.lgg.lggaicode.model.enums.ChatHistoryMessageTypeEnum;

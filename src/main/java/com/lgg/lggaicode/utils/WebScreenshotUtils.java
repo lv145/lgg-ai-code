@@ -4,6 +4,7 @@ import cn.hutool.core.img.ImgUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.lgg.lggaicode.constant.AppConstant;
 import com.lgg.lggaicode.exception.BusinessException;
 import com.lgg.lggaicode.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -53,9 +54,7 @@ public class WebScreenshotUtils {
             driver = initChromeDriver(DEFAULT_WIDTH, DEFAULT_HEIGHT);
 
             //创建临时目录
-            String rootPath = System.getProperty("user.dir")
-                    + File.separator + "tmp"
-                    + File.separator + "screenshots"
+            String rootPath = AppConstant.OUTPUT_ROOT_DIR+ "screenshots"
                     + File.separator + UUID.randomUUID().toString().substring(0, 8);
             FileUtil.mkdir(rootPath);
             final String IMAGE_SUFFIX = ".png";

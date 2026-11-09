@@ -19,16 +19,12 @@ public interface AppConstant {
      * 默认应用名称
      */
     String DEFAULT_APP_NAME = "未命名应用";
-
-    /**
-     * 应用生成目录
-     */
-    String CODE_OUTPUT_ROOT_DIR = System.getProperty("user.dir") + File.separator + "tmp" + File.separator + "code_output";
-
-    /**
-     * 应用部署目录
-     */
-    String CODE_DEPLOY_ROOT_DIR = System.getProperty("user.dir") + File.separator + "tmp" + File.separator + "code_deploy";
+    //输出内容根目录
+    String OUTPUT_ROOT_DIR = "/www/wwwroot/118.31.112.155/output/";
+    // 代码输出根目录
+    String CODE_OUTPUT_ROOT_DIR = OUTPUT_ROOT_DIR+"code_output";
+    // 应用部署目录
+    String CODE_DEPLOY_ROOT_DIR = OUTPUT_ROOT_DIR+"code_deploy";
 
     /**
      * 应用部署域名
